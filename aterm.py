@@ -11,6 +11,16 @@ DEBUG=False
 
 FLAGS = re.VERBOSE | re.MULTILINE | re.DOTALL
 
+class ATerm (object):
+    def __init__(self,name,params=[]):
+        self.name = name
+        self.params = params
+        
+    def __repr__(self):
+        if len(self.params) >0:
+            return "%s(%s)" % (self.name,repr(self.params)[1:-1])
+        return "%s" % self.name
+
 def debug(msg):
     if DEBUG:
         print "DEBUG:",msg
@@ -140,16 +150,6 @@ ID_RE = re.compile(
 
 encoding = 'utf-8'
 strict = True
-
-class ATerm (object):
-    def __init__(self,id,params=[]):
-        self.id = id
-        self.params = params
-        
-    def __repr__(self):
-        if len(self.params) >0:
-            return "%s(%s)" % (self.id,repr(self.params)[1:-1])
-        return "%s" % self.id
 
 def expect(string,idx,s):
     idx = skip_whitespace(string,idx)
