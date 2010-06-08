@@ -11,15 +11,35 @@ DEBUG=False
 
 FLAGS = re.VERBOSE | re.MULTILINE | re.DOTALL
 
+class AString(str):
+    def __init__(self,s):
+        str.__init__(self,s)
+    def __repr__(self):
+        return '"%s"' % str.__repr__(self)[2:-1]
+
+class AList(list):
+    def __init__(self,*a,**m):
+        list.__init__(self,*a,**m)
+    def update_children(self):
+        pass
+
 class ATerm (object):
     def __init__(self,name,params=[]):
         self.name = name
         self.params = params
+        self.update_children()
         
     def __repr__(self):
         if len(self.params) >0:
             return "%s(%s)" % (self.name,repr(self.params)[1:-1])
         return "%s" % self.name
+        
+    def update_children(self):
+        for c in self.params:
+            if isinstance(c,(ATerm,AList)):
+                c.up = self
+                c.update_children()
+
 
 def debug(msg):
     if DEBUG:
@@ -131,7 +151,7 @@ def scanstring(s, end, encoding=None, strict=True, _b=BACKSLASH, _m=STRINGCHUNK.
             end = next_end
         # Append the unescaped character
         _append(char)
-    return u''.join(chunks), end
+    return AString(u''.join(chunks)), end
 
 match_whitespace = re.compile(r'[ \t\n\r]*', FLAGS).match
 WHITESPACE = ' \t\n\r'
@@ -201,7 +221,7 @@ def scan(string, idx):
     raise ValueError( errmsg("Syntax error", string, idx))
 
 def parse_list(string,idx,terminator):
-    l = []
+    l = AList()
     debug("parse list "+string[idx:idx+20])
     
     while True:
@@ -230,6 +250,7 @@ def parse_list(string,idx,terminator):
             raise ValueError( errmsg("Syntax error while parsing list", string, idx))
     
     return l,idx
+
 
 def decode(string):
     res,idx = scan(string,0)
