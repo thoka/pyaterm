@@ -1,8 +1,12 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+  
 """Implementation of ATermDecoder
 
 hacked from JSONDecoder code
 """
 import re
+from itertools import ifilter
 
 __all__ = ['ATerm','decode']
 
@@ -11,34 +15,47 @@ DEBUG=False
 
 FLAGS = re.VERBOSE | re.MULTILINE | re.DOTALL
 
+
 class AString(str):
-    def __init__(self,s):
-        str.__init__(self,s)
     def __repr__(self):
-        return '"%s"' % str.__repr__(self)[2:-1]
-
-class AList(list):
-    def __init__(self,*a,**m):
-        list.__init__(self,*a,**m)
-    def update_children(self):
-        pass
-
-class ATerm (object):
+        return '"%s"' % str.__repr__(self)[1:-1]
+    def __eq__(self,other):
+        print "astring_eq_",self,other
+        
+class ATerm (list):
     def __init__(self,name,params=[]):
         self.name = name
-        self.params = params
+        self.extend(params)
         self.update_children()
         
     def __repr__(self):
-        if len(self.params) >0:
-            return "%s(%s)" % (self.name,repr(self.params)[1:-1])
+        return "%s(%s)" % (self.name,list.__repr__(self)[1:-1])
         return "%s" % self.name
         
     def update_children(self):
-        for c in self.params:
+        for c in self:
             if isinstance(c,(ATerm,AList)):
                 c.up = self
                 c.update_children()
+
+    def walk(self):
+        for c in self:
+            yield c
+            if isinstance(c,ATerm):
+                for i in c.walk():
+                    yield i
+
+    def findall(self,name):
+        for i in self.walk():
+            if isinstance(i,ATerm) and i.name == name:
+                yield i
+            
+
+class AList(ATerm):
+    def __init__(self):
+        self.name = "[]"
+    def __repr__(self):
+        return '[%s]' % (','.join([repr(l) for l in self]))
 
 
 def debug(msg):
@@ -55,16 +72,11 @@ def linecol(doc, pos):
     return lineno, colno
 
 def errmsg(msg, doc, pos, end=None):
-    # Note that this function is called from _speedups
     lineno, colno = linecol(doc, pos)
     if end is None:
-        #fmt = '{0}: line {1} column {2} (char {3})'
-        #return fmt.format(msg, lineno, colno, pos)
         fmt = '%s: line %d column %d (char %d)'
         return fmt % (msg, lineno, colno, pos)
     endlineno, endcolno = linecol(doc, end)
-    #fmt = '{0}: line {1} column {2} - line {3} column {4} (char {5} - {6})'
-    #return fmt.format(msg, lineno, colno, endlineno, endcolno, pos, end)
     fmt = '%s: line %d column %d - line %d column %d (char %d - %d)'
     return fmt % (msg, lineno, colno, endlineno, endcolno, pos, end)
 
@@ -151,7 +163,7 @@ def scanstring(s, end, encoding=None, strict=True, _b=BACKSLASH, _m=STRINGCHUNK.
             end = next_end
         # Append the unescaped character
         _append(char)
-    return AString(u''.join(chunks)), end
+    return AString(''.join(chunks)), end
 
 match_whitespace = re.compile(r'[ \t\n\r]*', FLAGS).match
 WHITESPACE = ' \t\n\r'
